@@ -22,7 +22,7 @@ class BetResults(Enum):
     MISS = "miss"
 
 
-def str2bet(bet_str: str, odds: int, wager: float, date: str = None):
+def str2bet(bet_str: str, bettor: str, odds: int, wager: float, date: str = None):
     moneyline_regex = r"^(.*?)\s+ML$"
     moneyline_match = re.match(moneyline_regex, bet_str)
     over_regex = r"^(.*?)\s+vs\s+(.*?)\s+O\s+(\d+\.\d+)$"
@@ -67,19 +67,35 @@ def str2bet(bet_str: str, odds: int, wager: float, date: str = None):
 
     if moneyline_match:
         bet = MoneylineBet(
-            game=game, odds=odds, wager=wager, taking_team=team, score=score
+            game=game,
+            bettor=bettor,
+            odds=odds,
+            wager=wager,
+            taking_team=team,
+            score=score,
         )
     elif over_match:
         bet = OverBet(
-            game=game, odds=odds, wager=wager, taking_points=taking_points, score=score
+            game=game,
+            bettor=bettor,
+            odds=odds,
+            wager=wager,
+            taking_points=taking_points,
+            score=score,
         )
     elif under_match:
         bet = UnderBet(
-            game=game, odds=odds, wager=wager, taking_points=taking_points, score=score
+            game=game,
+            bettor=bettor,
+            odds=odds,
+            wager=wager,
+            taking_points=taking_points,
+            score=score,
         )
     elif team_over_match:
         bet = TeamOverBet(
             game=game,
+            bettor=bettor,
             odds=odds,
             wager=wager,
             taking_points=taking_points,
@@ -89,6 +105,7 @@ def str2bet(bet_str: str, odds: int, wager: float, date: str = None):
     elif team_under_match:
         bet = TeamUnderBet(
             game=game,
+            bettor=bettor,
             odds=odds,
             wager=wager,
             taking_points=taking_points,
@@ -98,6 +115,7 @@ def str2bet(bet_str: str, odds: int, wager: float, date: str = None):
     elif spread_match:
         bet = SpreadBet(
             game=game,
+            bettor=bettor,
             odds=odds,
             wager=wager,
             taking_team=team,

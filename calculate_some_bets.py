@@ -61,7 +61,7 @@ for bet_tuple_name in jake_bet_tuples:
     bets = []
 
     for bet_str, odds, wager, date in tqdm(bet_tuples):
-        bet = str2bet(bet_str, odds, wager, date)
+        bet = str2bet(bet_str, "Jake", odds, wager, date)
         bets.append(bet)
 
     betgroup = BetGroup(
@@ -82,7 +82,7 @@ for bet_tuple_name in david_bet_tuples:
     bets = []
 
     for bet_str, odds, wager, date in tqdm(bet_tuples):
-        bet = str2bet(bet_str, odds, wager, date)
+        bet = str2bet(bet_str, "David", odds, wager, date)
         bets.append(bet)
 
     betgroup = BetGroup(
@@ -103,7 +103,7 @@ for bet_tuple_name in blain_bet_tuples:
     bets = []
 
     for bet_str, odds, wager, date in tqdm(bet_tuples):
-        bet = str2bet(bet_str, odds, wager, date)
+        bet = str2bet(bet_str, "Blain", odds, wager, date)
         bets.append(bet)
 
     betgroup = BetGroup(
