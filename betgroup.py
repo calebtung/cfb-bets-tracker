@@ -1,66 +1,88 @@
+from dataclasses import dataclass, field, asdict
+from typing_extensions import Self
 from bet import Bet, BetResults
 import json
-from typing_extensions import Self
+import pickle
 
 
+@dataclass
 class BetGroup:
-    def __init__(self, bettor: str, description: str, bets: list[Bet]):
-        self.bets = bets
-        self.bettor = bettor
-        self.description = description
+    group_name: str
+    sub_betgroups: dict[str, Self] = field(default_factory=dict)
+    bets: list[Bet] = field(default_factory=list)
+    hits: int = 0
+    misses: int = 0
+    pushes: int = 0
+    pendings: int = 0
+    profit: float = 0.0
+
+    def new_sub_betgroup(self, betgroup: Self):
+        if len(self.bets) > 0:
+            raise ValueError(
+                f"This betgroup with name {self.group_name} already has bets. You cannot use it to store betgroups."
+            )
+        self.sub_betgroups[betgroup.group_name] = betgroup
+
+    def new_bet(self, bet: Bet):
+        if len(self.sub_betgroups) > 0:
+            raise ValueError(
+                f"This betgroup with name {self.group_name} already has sub betgroups. You cannot use it to store bets."
+            )
+        if self.bets is None:
+            self.bets = []
+        self.bets.append(bet)
+
+    def evaluate(self):
         self.hits = 0
         self.misses = 0
         self.pushes = 0
-        self.pending = 0
-        self.unit_profit = 0.0
-        self.compute_record()
-
-    def merge_betgroups(
-        new_bettor: str, new_description: str, betgroups: list[Self]
-    ) -> Self:
-        all_bets = []
-        for betgroup in betgroups:
-            all_bets += betgroup.bets
-
-        new_betgroup = BetGroup(new_bettor, new_description, all_bets)
-        return new_betgroup
-
-    def compute_record(self):
-        self.hits = 0
-        self.misses = 0
-        self.pushes = 0
-        self.pending = 0
-        self.unit_profit = 0.0
-        for bet in self.bets:
-            if bet.score.is_final:
-                if bet.bet_status == BetResults.HIT.value:
+        self.pendings = 0
+        self.profit = 0
+        if len(self.bets) > 0:
+            for bet in self.bets:
+                bet.evaluate()
+                if bet.result == BetResults.HIT.value:
                     self.hits += 1
-                    self.unit_profit += bet.unit_profit
-                elif bet.bet_status == BetResults.MISS.value:
+                elif bet.result == BetResults.MISS.value:
                     self.misses += 1
-                    self.unit_profit -= 1
-                elif bet.bet_status == BetResults.PUSH.value:
+                elif bet.result == BetResults.PUSH.value:
                     self.pushes += 1
-            else:
-                self.pending += 1
+                else:
+                    self.pendings += 1
+                self.profit += bet.resulting_unit_profit
+        else:
+            for betgroup_name, betgroup in self.sub_betgroups.items():
+                betgroup.evaluate()
+                self.hits += betgroup.hits
+                self.misses += betgroup.misses
+                self.pushes += betgroup.pushes
+                self.pendings += betgroup.pendings
+                self.profit += betgroup.profit
 
-    def as_dict(self):
-        return self.__dict__.copy()
+    def to_json(self, indent: int = 4):
+        betgroup_dict = asdict(self)
+        betgroup_json = json.dumps(betgroup_dict, indent=indent)
+        return betgroup_json
 
-    def as_json(self):
-        self_dict = self.as_dict()
-        bets_json_list = [bet.as_jsonable_dict() for bet in self.bets]
-        self_dict["bets"] = bets_json_list
-        self_json = json.dumps(self_dict, indent=4)
-        return self_json
+    def save_to_disk(self, filepath: str):
+        with open(filepath, "wb") as f:
+            pickle.dump(self, f)
 
-    def from_json(betgroup_json: str) -> Self:
-        betgroup = BetGroup(bettor="", description="", bets=[])
-        betgroup_dict = json.loads(betgroup_json)
-        bets = [Bet.from_jsonable_dict(bet_json) for bet_json in betgroup_dict["bets"]]
-        betgroup_dict["bets"] = bets
+    def get_start_and_end_dates_of_all_bets(self) -> tuple[str, str]:
+        all_dates = []
+        if len(self.bets) > 0:
+            for bet in self.bets:
+                all_dates.append(bet.game.date)
+        else:
+            for sub_betgroup in self.sub_betgroups.values():
+                sub_start, sub_end = sub_betgroup.get_start_and_end_dates_of_all_bets()
+                all_dates.append(sub_start)
+                all_dates.append(sub_end)
+        if len(all_dates) == 0:
+            return None, None
+        return min(all_dates), max(all_dates)
 
-        for key, value in betgroup_dict.items():
-            setattr(betgroup, key, value)
-
-        return betgroup
+    @staticmethod
+    def load_from_disk(filepath: str) -> Self:
+        with open(filepath, "rb") as f:
+            return pickle.load(f)
